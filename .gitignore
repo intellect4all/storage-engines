@@ -35,3 +35,6 @@ Thumbs.db
 # Claude AI configuration (local settings only)
 .claude/settings.local.json
 /benchmark
+
+# generated test/demo data
+data/

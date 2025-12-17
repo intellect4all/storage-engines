@@ -55,8 +55,19 @@ func (h *HashIndex) recover() error {
 	recoveredSegments := make([]*segment, 0)
 	latestValues := make(map[string]*indexEntry)
 
-	for _, info := range segmentInfos {
-		file, err := os.OpenFile(info.path, os.O_RDWR, 0644)
+	for i, info := range segmentInfos {
+		// Determine if this will be the active segment (last one)
+		isLastSegment := i == len(segmentInfos)-1
+
+		// Active segment needs O_APPEND for new writes, others are read-only
+		var file *os.File
+		if isLastSegment {
+			// Active segment: needs append capability for new writes
+			file, err = os.OpenFile(info.path, os.O_RDWR|os.O_APPEND, 0644)
+		} else {
+			// Immutable segments: read-only
+			file, err = os.OpenFile(info.path, os.O_RDWR, 0644)
+		}
 		if err != nil {
 			return fmt.Errorf("failed to open segment %s: %w", info.path, err)
 		}

@@ -285,3 +285,163 @@ func TestRecoveryFileHandling(t *testing.T) {
 		t.Errorf("Expected value, got %s", val)
 	}
 }
+
+// TestRecoveryActualValues tests that actual values are recovered correctly
+func TestRecoveryActualValues(t *testing.T) {
+	dir, err := os.MkdirTemp("", "hashindex-recovery-values-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	// First session: write data
+	h1, err := New(DefaultConfig(dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testData := map[string]string{
+		"Name": "John Doe",
+		"Age":  "30",
+		"City": "New York",
+	}
+
+	for key, value := range testData {
+		if err := h1.Put([]byte(key), []byte(value)); err != nil {
+			t.Fatalf("Failed to put %s: %v", key, err)
+		}
+	}
+
+	if err := h1.Sync(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := h1.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Second session: recover and read
+	h2, err := New(DefaultConfig(dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h2.Close()
+
+	// Verify all values are recovered
+	for key, expectedValue := range testData {
+		val, err := h2.Get([]byte(key))
+		if err != nil {
+			t.Errorf("Failed to get key '%s' after recovery: %v", key, err)
+			continue
+		}
+
+		actualValue := string(val)
+		if actualValue != expectedValue {
+			t.Errorf("Key '%s': expected '%s', got '%s'", key, expectedValue, actualValue)
+		}
+	}
+}
+
+// TestRecoveryWithNewWrites tests that writes after recovery work correctly
+// This specifically tests the bug fix for O_APPEND flag in recovered active segment
+func TestRecoveryWithNewWrites(t *testing.T) {
+	dir, err := os.MkdirTemp("", "hashindex-recovery-writes-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	// First session: write initial data
+	h1, err := New(DefaultConfig(dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := h1.Put([]byte("key1"), []byte("value1")); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := h1.Sync(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := h1.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Second session: recover and write new data
+	h2, err := New(DefaultConfig(dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify recovered data
+	val, err := h2.Get([]byte("key1"))
+	if err != nil {
+		t.Fatalf("Failed to get key1 after recovery: %v", err)
+	}
+	if string(val) != "value1" {
+		t.Errorf("Expected 'value1', got '%s'", val)
+	}
+
+	// Write new data in the same session
+	if err := h2.Put([]byte("key2"), []byte("value2")); err != nil {
+		t.Fatal(err)
+	}
+
+	// Update existing key
+	if err := h2.Put([]byte("key1"), []byte("updated1")); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := h2.Sync(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify new data can be read
+	val2, err := h2.Get([]byte("key2"))
+	if err != nil {
+		t.Fatalf("Failed to get key2: %v", err)
+	}
+	if string(val2) != "value2" {
+		t.Errorf("Expected 'value2', got '%s'", val2)
+	}
+
+	// Verify updated data can be read
+	val1Updated, err := h2.Get([]byte("key1"))
+	if err != nil {
+		t.Fatalf("Failed to get updated key1: %v", err)
+	}
+	if string(val1Updated) != "updated1" {
+		t.Errorf("Expected 'updated1', got '%s'", val1Updated)
+	}
+
+	if err := h2.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Third session: verify all data persists
+	h3, err := New(DefaultConfig(dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h3.Close()
+
+	// Verify updated key1
+	val1Final, err := h3.Get([]byte("key1"))
+	if err != nil {
+		t.Fatalf("Failed to get key1 in third session: %v", err)
+	}
+	if string(val1Final) != "updated1" {
+		t.Errorf("Expected 'updated1' in third session, got '%s'", val1Final)
+	}
+
+	// Verify key2
+	val2Final, err := h3.Get([]byte("key2"))
+	if err != nil {
+		t.Fatalf("Failed to get key2 in third session: %v", err)
+	}
+	if string(val2Final) != "value2" {
+		t.Errorf("Expected 'value2' in third session, got '%s'", val2Final)
+	}
+}
