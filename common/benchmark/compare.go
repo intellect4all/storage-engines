@@ -20,6 +20,11 @@ func NewComparisonSuite() *ComparisonSuite {
 	}
 }
 
+// SetWorkloads sets custom workload configurations
+func (cs *ComparisonSuite) SetWorkloads(configs []Config) {
+	cs.configs = configs
+}
+
 // StandardWorkloads returns common benchmark scenarios
 func StandardWorkloads() []Config {
 	return []Config{
@@ -75,30 +80,44 @@ func StandardWorkloads() []Config {
 }
 
 // QuickWorkloads returns faster workloads for testing
+// Designed to work with both Hash Index and LSM-Tree defaults
+// LSM default memtable = 4MB, so we need > 4MB of data to trigger flushes
 func QuickWorkloads() []Config {
 	return []Config{
 		{
 			Name:            "quick-write-heavy",
 			WorkloadType:    WorkloadWriteHeavy,
 			KeyDistribution: DistUniform,
-			NumKeys:         10000,
+			NumKeys:         50000, // 50k keys × 132 bytes = 6.3 MB (triggers LSM flushes)
 			KeySize:         16,
 			ValueSize:       100,
-			Duration:        10 * time.Second,
-			Concurrency:     4,
-			PreloadKeys:     1000,
+			Duration:        15 * time.Second,
+			Concurrency:     8,
+			PreloadKeys:     5000, // Start with some data
 			Seed:            12345,
 		},
 		{
 			Name:            "quick-balanced",
 			WorkloadType:    WorkloadBalanced,
 			KeyDistribution: DistUniform,
-			NumKeys:         10000,
+			NumKeys:         50000, // 50k keys × 132 bytes = 6.3 MB
 			KeySize:         16,
 			ValueSize:       100,
-			Duration:        10 * time.Second,
-			Concurrency:     4,
-			PreloadKeys:     1000,
+			Duration:        15 * time.Second,
+			Concurrency:     8,
+			PreloadKeys:     10000, // More preload for read-heavy portion
+			Seed:            12345,
+		},
+		{
+			Name:            "quick-read-heavy",
+			WorkloadType:    WorkloadReadHeavy,
+			KeyDistribution: DistZipfian, // Realistic: some keys accessed more
+			NumKeys:         50000,
+			KeySize:         16,
+			ValueSize:       100,
+			Duration:        15 * time.Second,
+			Concurrency:     8,
+			PreloadKeys:     30000, // Need data to read
 			Seed:            12345,
 		},
 	}

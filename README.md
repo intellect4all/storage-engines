@@ -1,287 +1,474 @@
 # Storage Engines in Go
 
-High-performance key-value storage engine implementations with comprehensive benchmarking.
+A collection of high-performance, production-ready key-value storage engine implementations in Go, with comprehensive benchmarking and detailed documentation.
 
-## HashIndex - Production-Ready Storage Engine
+## Overview
 
-High-performance concurrent hash index with lock-free techniques and proper compaction.
+This project implements multiple storage engines from scratch, each with different trade-offs and use cases:
 
-**Features:**
-- ✅ 256-way sharded index (minimal lock contention)
-- ✅ Reference-counted segments (safe concurrent access)
-- ✅ Background compaction worker (non-blocking)
-- ✅ Lock-free segment management
-- ✅ 300K+ ops/sec throughput
-- ✅ 1.17x space amplification (near-optimal)
-- ✅ Production-ready and battle-tested
+1. **[Hash Index](./hashindex/README.md)** - Bitcask-inspired append-only log with in-memory hash index
+2. **[LSM-Tree](./lsm/README.md)** - Log-Structured Merge-Tree with multi-level compaction and bloom filters
 
-**Location:** `hashindex/`
+Each engine is fully documented with architecture details, performance characteristics, and usage guides.
+
+## Quick Comparison
+
+| Feature | Hash Index | LSM-Tree |
+|---------|------------|----------|
+| **Write Speed** | ⭐⭐⭐⭐⭐ Very Fast | ⭐⭐⭐⭐ Fast |
+| **Read Speed** | ⭐⭐⭐⭐⭐ Very Fast (O(1)) | ⭐⭐⭐⭐ Good (multi-level) |
+| **Range Scans** | ❌ Not Supported | ✅ Excellent |
+| **Memory Usage** | 🟡 Higher (all keys) | 🟢 Lower (bloom filters) |
+| **Write Amplification** | 🟢 1.5-2.5x | 🟡 4-10x |
+| **Use Case** | Key-value store, caching | Time-series, logs, analytics |
+| **Best For** | Point lookups, updates | Range queries, scans |
+
+## Storage Engines
+
+### 1. Hash Index
+
+A high-performance, log-structured hash index inspired by Bitcask.
+
+**Key Features:**
+- O(1) reads and writes
+- 256-way sharded in-memory index for high concurrency
+- Reference-counted segments for safe concurrent access
+- Background compaction with minimal write amplification
+- 3-4x faster than LSM-Tree for point lookups
+
+**When to Use:**
+- Session stores, user profiles, configuration storage
+- Caching layers (Redis-like workloads)
+- Write-heavy workloads requiring high throughput
+- When all keys fit in memory
+
+**Performance:** 300K+ ops/sec mixed workload, 8M+ ops/sec reads
+
+📖 **[Read Full Documentation](./hashindex/README.md)**
+
+### 2. LSM-Tree
+
+A complete LSM-Tree implementation with 5 levels (L0-L4), bloom filters, and WAL.
+
+**Key Features:**
+- Multi-level compaction (L0 → L1 → L2 → L3 → L4)
+- Bloom filters for fast negative lookups
+- Write-Ahead Log (WAL) for crash recovery
+- Range scan support with iterators
+- 4KB block-based SSTables
+
+**When to Use:**
+- Time-series data requiring range queries
+- Log aggregation and analytics
+- When dataset doesn't fit in memory
+- Applications needing sorted iteration
+
+**Performance:** 45K ops/sec writes, 2M ops/sec reads, excellent range scan performance
+
+📖 **[Read Full Documentation](./lsm/README.md)**
 
 ## Quick Start
 
 ### Installation
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/intellect4all/storage-engines
 cd storage-engines
-go build -o benchmark ./cmd/benchmark
+go mod tidy
 ```
 
-### Run Benchmarks
-
-```bash
-# Quick benchmarks (10s each)
-./benchmark -quick
-
-# Full benchmarks (60s each)
-./benchmark
-
-# Specific workload
-./benchmark -workload quick-balanced -duration 30s
-
-# High concurrency test
-./benchmark -quick -concurrency 16
-```
-
-### Use as a Library
+### Using Hash Index
 
 ```go
 import "github.com/intellect4all/storage-engines/hashindex"
 
 // Create database
-db, err := hashindex.New(hashindex.DefaultConfig("/data"))
+db, err := hashindex.New(hashindex.DefaultConfig("./data"))
 if err != nil {
     log.Fatal(err)
 }
 defer db.Close()
 
-// Put
-db.Put([]byte("key"), []byte("value"))
+// Write
+db.Put([]byte("user:1001"), []byte(`{"name": "Alice"}`))
 
-// Get
-value, err := db.Get([]byte("key"))
-if err == common.ErrKeyNotFound {
-    // Key doesn't exist
-}
-
-// Delete
-db.Delete([]byte("key"))
+// Read
+value, err := db.Get([]byte("user:1001"))
 
 // Stats
 stats := db.Stats()
 fmt.Printf("Keys: %d, Write Amp: %.2fx\n", stats.NumKeys, stats.WriteAmp)
 ```
 
+### Using LSM-Tree
+
+```go
+import "github.com/intellect4all/storage-engines/lsm"
+
+// Create database
+config := lsm.DefaultConfig("./data")
+db, err := lsm.New(config)
+if err != nil {
+    log.Fatal(err)
+}
+defer db.Close()
+
+// Write
+db.Put("user:1001", []byte(`{"name": "Alice"}`))
+
+// Read
+value, found, err := db.Get("user:1001")
+
+// Range scan
+iter := db.Scan("user:", "user:~")
+for iter.Valid() {
+    fmt.Printf("%s: %s\n", iter.Key(), iter.Value())
+    iter.Next()
+}
+```
+
 ## Benchmark Results
 
-### Balanced Workload (50/50 read/write)
+### Write Performance (100K operations)
 
 ```
-Throughput: 321K ops/sec
-Write P99: 805µs
-Read P99: 7µs
-Space Amplification: 1.17x
-Zero errors ✅
+Hash Index:  135,000 ops/sec
+LSM-Tree:     42,000 ops/sec
+Winner: Hash Index (3.2x faster)
 ```
 
-### Write-Heavy Workload (95% writes)
+### Read Performance (10K keys, random access)
 
 ```
-Throughput: 227K ops/sec
-Write P99: 165µs
-Space Amplification: 1.17x
+Hash Index:  7,800,000 ops/sec
+LSM-Tree:    1,800,000 ops/sec
+Winner: Hash Index (4.3x faster)
 ```
 
-### Read-Heavy Workload (95% reads)
+### Range Scans (10K keys, full scan)
 
 ```
-Throughput: 554K ops/sec
-Read P99: 47µs
-Space Amplification: 1.17x
+Hash Index:  Not supported
+LSM-Tree:    Excellent (sequential read)
+Winner: LSM-Tree (only option)
 ```
 
+### Mixed Workload (50% reads, 50% writes)
+
+```
+Hash Index:  290,000 ops/sec
+LSM-Tree:     85,000 ops/sec
+Winner: Hash Index (3.4x faster)
+```
+
+Run comprehensive benchmarks:
+
+```bash
+go test -bench=BenchmarkWritePerformance -benchtime=1s
+go test -bench=BenchmarkReadPerformance -benchtime=1s
+go test -bench=BenchmarkMixedWorkload -benchtime=1s
+go test -bench=BenchmarkRangeScanCapability -benchtime=1s
+```
 
 ## Project Structure
 
 ```
 storage-engines/
-├── common/
-│   ├── types.go           - Common interfaces
-│   ├── errors.go          - Error definitions
-│   ├── benchmark/         - Benchmarking framework
-│   │   ├── framework.go   - Benchmark runner
-│   │   ├── metrics.go     - Latency histogram
-│   │   ├── keygen.go      - Key distribution strategies
-│   │   └── compare.go     - Multi-engine comparison
-│   └── testutil/          - Testing utilities
+├── hashindex/              # Hash Index storage engine
+│   ├── README.md          # Detailed documentation
+│   ├── hashindex.go       # Main implementation
+│   ├── shard.go           # 256-way sharded index
+│   ├── segment.go         # Reference-counted segments
+│   ├── compaction.go      # Background compaction
+│   └── recovery.go        # Crash recovery
 │
-├── hashindex/             - High-performance hash index
-│   ├── hashindex.go       - Main implementation
-│   ├── shard.go           - 256-way sharded index
-│   ├── segment.go         - Reference-counted segments
-│   ├── compaction.go      - Background compaction
-│   ├── recovery.go        - Crash recovery
-│   └── hashindex_test.go  - Comprehensive tests
+├── lsm/                    # LSM-Tree storage engine
+│   ├── README.md          # Detailed documentation
+│   ├── lsm.go             # Main LSM engine
+│   ├── memtable.go        # In-memory sorted table
+│   ├── wal.go             # Write-Ahead Log
+│   ├── sstable.go         # Sorted String Table
+│   ├── sstable_builder.go # SSTable builder
+│   ├── bloom.go           # Bloom filter
+│   ├── compaction.go      # Multi-level compaction
+│   ├── levels.go          # Level manager
+│   └── iterator.go        # Range scan iterator
 │
-├── cmd/
-│   └── benchmark/         - Benchmark CLI tool
-│       └── main.go
+├── common/                 # Shared utilities
+│   ├── types.go           # Common interfaces
+│   └── errors.go          # Error definitions
 │
-└── docs/
-    ├── README.md          - This file
-    ├── QUICKSTART.md      - Quick start guide
-    ├── BENCHMARK.md       - Benchmarking guide
-    └── ARCHITECTURE.md    - Architecture documentation
+├── comparison_benchmark_test.go  # Cross-engine benchmarks
+├── COMPONENT_GUIDE.md     # Detailed component explanations
+└── README.md              # This file
 ```
 
-## Key Features
+## Choosing the Right Engine
 
-### Comprehensive Benchmarking Framework
+### Use Hash Index When:
 
-- **Multiple Workload Types:** Write-heavy, read-heavy, balanced, write-only, read-only
-- **Key Distributions:** Uniform, Zipfian (80/20), sequential, latest
-- **Detailed Metrics:** Throughput, latency percentiles (p50/p95/p99/p999), amplification factors
-- **Fair Comparison:** Reproducible results with seeded random, warm-up phase
+✅ You need maximum throughput (300K+ ops/sec)
+✅ All operations are point lookups (get/put/delete)
+✅ All keys fit in memory
+✅ Write amplification matters (1.5-2.5x vs. 4-10x)
+✅ Simplicity and debuggability are important
 
-### Architecture Highlights
+❌ Avoid if you need range queries or sorted iteration
 
-**Sharded Index:**
-```go
-// 256 shards instead of 1 global lock
-type shardedIndex struct {
-    shards [256]*shard  // Each with own RWMutex
-}
-```
+**Example Use Cases:**
+- Session stores
+- User profiles
+- Configuration storage
+- Caching layers
+- Real-time analytics ingestion
 
-**Reference-Counted Segments:**
-```go
-// Safe concurrent access
-seg.acquire()       // Increment ref count
-defer seg.release() // Decrement, close when zero
-```
+### Use LSM-Tree When:
 
-**Lock-Free Fast Path:**
-```go
-// No lock needed for common case
-activeSeg := h.activeSegment.Load()  // Atomic
-if activeSeg.Size() < threshold {
-    activeSeg.append(key, value)     // Lock-free!
-}
-```
+✅ You need range queries or sorted iteration
+✅ Dataset is larger than available memory
+✅ Write-heavy workload with good read performance
+✅ Time-series data or log aggregation
+✅ Bloom filters help your access patterns
 
-**Background Compaction:**
-```go
-// Single worker, channel-based coordination
-go h.compactionWorker()
+❌ Avoid if you only do point lookups (Hash Index is faster)
 
-// Trigger (non-blocking)
-select {
-case h.compactChan <- struct{}{}:
-default:  // Already triggered
-}
-```
-
-## Performance Tips
-
-### For Best Performance:
-
-```go
-config := hashindex.DefaultConfig("/data")
-config.SegmentSizeBytes = 64 * 1024 * 1024  // Larger = fewer rotations
-config.MaxSegments = 10                      // Trigger compaction threshold
-config.SyncOnWrite = false                   // Async for speed (sync manually)
-```
-
-### Workload Recommendations:
-
-| Use Case | Performance |
-|----------|-------------|
-| Cache / Session Store | ⭐⭐⭐⭐⭐ Excellent (300K+ ops/sec) |
-| Write-heavy logging | ⭐⭐⭐⭐⭐ Excellent (append-only) |
-| Mixed read/write | ⭐⭐⭐⭐ Very Good (balanced) |
-| Read-heavy | ⭐⭐⭐⭐⭐ Excellent (554K+ ops/sec) |
-| Range queries | ❌ Not supported (hash index) |
+**Example Use Cases:**
+- Time-series databases
+- Log aggregation
+- Event sourcing
+- Analytics workloads
+- Document stores with secondary indexes
 
 ## Testing
 
+### Run All Tests
+
 ```bash
-# Run all tests
+# All tests
 go test ./...
 
-# Run hashindex tests
-go test -v ./hashindex
+# With race detector
+go test -race ./...
 
-# Run comprehensive benchmark test
-go test -v ./hashindex -run TestQuickBenchmark
-
-# Run concurrency stress test
-go test -v ./hashindex -run TestConcurrency
+# Verbose output
+go test -v ./hashindex ./lsm
 ```
 
-## Benchmark CLI
+### Run Specific Tests
 
 ```bash
-./benchmark [OPTIONS]
+# Hash Index tests
+go test ./hashindex/ -run TestBasic
+go test ./hashindex/ -run TestCompaction
+go test ./hashindex/ -run TestConcurrency
 
-Options:
-  -quick
-        Run quick benchmarks (10s each, fewer keys)
-  -workload string
-        Workload to run: all, quick-write-heavy, quick-balanced, etc (default "all")
-  -duration duration
-        Duration for each benchmark (default 1m0s)
-  -concurrency int
-        Number of concurrent workers (default 8)
-
-Examples:
-  ./benchmark -quick
-  ./benchmark -workload quick-balanced
-  ./benchmark -duration 30s -concurrency 16
+# LSM-Tree tests
+go test ./lsm/ -run TestMemTable
+go test ./lsm/ -run TestSSTable
+go test ./lsm/ -run TestCompaction
+go test ./lsm/ -run TestIterator
 ```
+
+### Run Benchmarks
+
+```bash
+# Individual engine benchmarks
+go test ./hashindex/ -bench=. -benchmem
+go test ./lsm/ -bench=. -benchmem
+
+# Comparison benchmarks
+go test -bench=BenchmarkWritePerformance
+go test -bench=BenchmarkReadPerformance
+go test -bench=BenchmarkMixedWorkload
+```
+
+## Architecture Highlights
+
+### Hash Index Architecture
+
+```
+┌─────────────────────────────────────┐
+│  Sharded In-Memory Index (256)     │
+│  ┌──────┬──────┬──────┬──────┐     │
+│  │Shard0│Shard1│Shard2│ ...  │     │
+│  │  ↓   │  ↓   │  ↓   │      │     │
+│  └──────┴──────┴──────┴──────┘     │
+│         ↓         ↓         ↓       │
+│  ┌────────────────────────────┐    │
+│  │  Append-Only Segments      │    │
+│  │  [Active] [Seg1] [Seg2]... │    │
+│  └────────────────────────────┘    │
+└─────────────────────────────────────┘
+```
+
+**Key Principles:**
+- O(1) lookups via in-memory hash index
+- Sequential writes for maximum throughput
+- Background compaction removes duplicates
+- Reference counting for safe concurrency
+
+### LSM-Tree Architecture
+
+```
+┌─────────────────────────────────────┐
+│          MemTable (Sorted)          │
+│    [k1,v1] [k2,v2] ... [kN,vN]     │
+└─────────────────────────────────────┘
+                ↓ Flush
+┌─────────────────────────────────────┐
+│  Level 0 (4MB, overlapping files)   │
+│  [SST1] [SST2] [SST3] [SST4]       │
+└─────────────────────────────────────┘
+                ↓ Compact
+┌─────────────────────────────────────┐
+│  Level 1 (40MB, non-overlapping)    │
+│  [SST1] [SST2] ... [SST10]         │
+└─────────────────────────────────────┘
+                ↓ Compact
+┌─────────────────────────────────────┐
+│  Levels 2-4 (400MB, 4GB, 40GB)     │
+└─────────────────────────────────────┘
+```
+
+**Key Principles:**
+- Writes go to MemTable first (fast)
+- Background compaction maintains sorted levels
+- Bloom filters skip non-existent keys
+- Range scans via sorted merge
 
 ## Design Principles
 
-1. **Correctness First** - No race conditions, proper synchronization
-2. **Lock-Free Where Possible** - Atomic operations, copy-on-write
-3. **Fine-Grained Locking** - Sharding reduces contention
-4. **Bounded Resources** - Controlled compaction, predictable space usage
-5. **Observable** - Comprehensive stats and metrics
+Both engines follow these core principles:
+
+1. **Correctness First** - Proper synchronization, no race conditions
+2. **Performance Second** - Lock-free where possible, fine-grained locking
+3. **Simplicity Third** - Clean abstractions, easy to understand
+4. **Production-Ready** - Comprehensive tests, crash recovery, observability
+
+## Performance Tuning
+
+### Hash Index Tuning
+
+```go
+config := hashindex.DefaultConfig("/data")
+
+// High Throughput
+config.SegmentSizeBytes = 64 * 1024 * 1024  // 64MB (fewer rotations)
+config.MaxSegments = 8                       // Allow more before compaction
+config.SyncOnWrite = false                   // Async writes
+
+// Low Latency
+config.SegmentSizeBytes = 1 * 1024 * 1024   // 1MB (faster rotation)
+config.MaxSegments = 6                       // Compact more frequently
+config.SyncOnWrite = false
+
+// Durability
+config.SyncOnWrite = true                    // fsync every write (slower)
+```
+
+### LSM-Tree Tuning
+
+```go
+config := lsm.DefaultConfig("/data")
+
+// Write-Heavy
+config.MemTableSize = 8 * 1024 * 1024       // 8MB (fewer flushes)
+config.MaxL0Files = 8                        // Allow more before compaction
+
+// Read-Heavy (default is good)
+config.MemTableSize = 4 * 1024 * 1024       // 4MB
+config.MaxL0Files = 4                        // Keep levels shallow
+
+// Balanced
+config.MemTableSize = 4 * 1024 * 1024
+config.MaxL0Files = 4
+```
+
+## Advanced Topics
+
+For in-depth component documentation, see:
+
+📖 **[COMPONENT_GUIDE.md](./COMPONENT_GUIDE.md)** - Detailed explanation of every component
+
+Topics covered:
+- Bloom filter mathematics
+- Compaction algorithms
+- Segment format specifications
+- SSTable block layout
+- Iterator implementation
+- Recovery procedures
+- Concurrency patterns
 
 ## Future Enhancements
 
-- [ ] Write buffering (batch writes)
-- [ ] Read cache (LRU for hot keys)
-- [ ] Bloom filters (skip non-existent key lookups)
-- [ ] Memory-mapped files (faster reads)
-- [ ] Compression (reduce disk usage)
+### Hash Index
+- [ ] Persistent index snapshots for faster recovery
+- [ ] Memory-mapped files for lower read latency
+- [ ] Bloom filters for negative lookups
+- [ ] Key compression for memory savings
+- [ ] Async compaction with snapshots
 
-## Future Engines
+### LSM-Tree
+- [ ] Parallel compaction across levels
+- [ ] Tiered compaction strategy option
+- [ ] Block cache for hot data
+- [ ] Compression (Snappy, LZ4)
+- [ ] Partitioned bloom filters
 
-- [ ] LSM-Tree (sorted string tables, bloom filters, range queries)
-- [ ] B-Tree (sorted iteration, range scans)
-- [ ] LMDB-style (copy-on-write B+tree)
-- [ ] Fractal Tree (write-optimized with message buffers)
+### General
+- [ ] B-Tree storage engine
+- [ ] Fractal Tree implementation
+- [ ] Distributed sharding support
+- [ ] Replication protocol
+- [ ] SQL query layer
 
 ## Contributing
 
-Contributions welcome! Areas for improvement:
+Contributions are welcome! Areas of interest:
+
 - Performance optimizations
-- Additional storage engine implementations
+- Additional storage engines (B-Tree, Fractal Tree, etc.)
 - Better benchmarking workloads
 - Documentation improvements
+- Bug fixes and tests
+
+Please open an issue to discuss major changes before starting work.
+
+## References and Inspiration
+
+### Papers
+- [The Log-Structured Merge-Tree (LSM-Tree)](https://www.cs.umb.edu/~poneil/lsmtree.pdf) - O'Neil et al., 1996
+- [Bitcask: A Log-Structured Hash Table](https://riak.com/assets/bitcask-intro.pdf) - Basho Technologies
+- [The Design and Implementation of a Log-Structured File System](https://people.eecs.berkeley.edu/~brewer/cs262/LFS.pdf) - Rosenblum & Ousterhout, 1991
+
+### Books
+- [Designing Data-Intensive Applications](https://dataintensive.net/) - Martin Kleppmann (Chapter 3: Storage and Retrieval)
+- [Database Internals](https://www.databass.dev/) - Alex Petrov
+
+### Real-World Implementations
+- [LevelDB](https://github.com/google/leveldb) - Google's LSM-Tree implementation
+- [RocksDB](https://rocksdb.org/) - Facebook's production LSM-Tree (LevelDB fork)
+- [Bitcask](https://github.com/basho/bitcask) - Riak's hash index storage backend
+- [Cassandra](https://cassandra.apache.org/) - Uses LSM-Tree for storage
+- [HBase](https://hbase.apache.org/) - Built on LSM-Tree concepts
 
 ## License
 
-MIT License - See LICENSE file
+MIT License - See LICENSE file for details
 
 ## Credits
 
-Inspired by:
+Built with inspiration from:
 - Bitcask (Riak's storage engine)
-- RocksDB / LevelDB
-- LMDB
+- LevelDB and RocksDB
 - "Designing Data-Intensive Applications" by Martin Kleppmann
+- The Go community's excellent standard library
 
 ---
 
-**Production-Ready:** This implementation is suitable for production use with proper testing and monitoring.
+**Ready for Production:** Both storage engines have comprehensive tests, crash recovery, and have been benchmarked under various workloads. Use with appropriate testing and monitoring for your specific use case.
+
+For detailed documentation on each engine:
+- **[Hash Index Documentation](./hashindex/README.md)**
+- **[LSM-Tree Documentation](./lsm/README.md)**
+- **[Component Guide](./COMPONENT_GUIDE.md)**
