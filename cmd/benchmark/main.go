@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/intellect4all/storage-engines/btree"
 	"github.com/intellect4all/storage-engines/common"
 	"github.com/intellect4all/storage-engines/common/benchmark"
 	"github.com/intellect4all/storage-engines/hashindex"
@@ -18,7 +19,7 @@ func main() {
 	workload := flag.String("workload", "all", "Workload to run (all, write-heavy, read-heavy, balanced, write-only)")
 	duration := flag.Duration("duration", 60*time.Second, "Duration for each benchmark")
 	concurrency := flag.Int("concurrency", 8, "Number of concurrent workers")
-	engine := flag.String("engine", "compare", "Engine to benchmark: hashindex, lsm, or compare (default: compare)")
+	engine := flag.String("engine", "compare", "Engine to benchmark: hashindex, lsm, btree, or compare (default: compare)")
 	flag.Parse()
 
 	fmt.Println("Storage Engine Benchmark Suite")
@@ -67,10 +68,12 @@ func main() {
 		runHashIndex(configs)
 	case "lsm":
 		runLSM(configs)
+	case "btree":
+		runBTree(configs)
 	case "compare":
 		runComparison(configs)
 	default:
-		fmt.Printf("Unknown engine: %s (must be hashindex, lsm, or compare)\n", *engine)
+		fmt.Printf("Unknown engine: %s (must be hashindex, lsm, btree, or compare)\n", *engine)
 		os.Exit(1)
 	}
 }
@@ -124,11 +127,39 @@ func runLSM(configs []benchmark.Config) {
 	fmt.Println("\n" + strings.Repeat("=", 80))
 	fmt.Println("LSM-TREE RANGE SCAN BENCHMARK")
 	fmt.Println(strings.Repeat("=", 80))
-	runRangeScanBenchmark(l)
+	runLSMRangeScanBenchmark(l)
+}
+
+func runBTree(configs []benchmark.Config) {
+	fmt.Println("=== B-Tree Benchmark ===\n")
+
+	dir, err := os.MkdirTemp("", "benchmark-btree-*")
+	if err != nil {
+		fmt.Printf("Failed to create temp dir: %v\n", err)
+		os.Exit(1)
+	}
+	defer os.RemoveAll(dir)
+
+	btreeConfig := btree.DefaultConfig(dir)
+	b, err := btree.New(btreeConfig)
+	if err != nil {
+		fmt.Printf("Failed to create B-Tree: %v\n", err)
+		os.Exit(1)
+	}
+	defer b.Close()
+
+	results := runBenchmarks(b, "B-Tree", configs)
+	printSummaryTable(results)
+
+	// Run B-Tree-specific range scan benchmark
+	fmt.Println("\n" + strings.Repeat("=", 80))
+	fmt.Println("B-TREE RANGE SCAN BENCHMARK")
+	fmt.Println(strings.Repeat("=", 80))
+	runBTreeRangeScanBenchmark(b)
 }
 
 func runComparison(configs []benchmark.Config) {
-	fmt.Println("=== Comparing HashIndex vs. LSM-Tree ===\n")
+	fmt.Println("=== Comparing HashIndex vs. LSM-Tree vs. B-Tree ===\n")
 
 	// Create temp directories
 	hashDir, err := os.MkdirTemp("", "benchmark-hashindex-*")
@@ -144,6 +175,13 @@ func runComparison(configs []benchmark.Config) {
 		os.Exit(1)
 	}
 	defer os.RemoveAll(lsmDir)
+
+	btreeDir, err := os.MkdirTemp("", "benchmark-btree-*")
+	if err != nil {
+		fmt.Printf("Failed to create temp dir: %v\n", err)
+		os.Exit(1)
+	}
+	defer os.RemoveAll(btreeDir)
 
 	// Create engines
 	hashConfig := hashindex.DefaultConfig(hashDir)
@@ -163,10 +201,19 @@ func runComparison(configs []benchmark.Config) {
 	}
 	defer l.Close()
 
+	btreeConfig := btree.DefaultConfig(btreeDir)
+	b, err := btree.New(btreeConfig)
+	if err != nil {
+		fmt.Printf("Failed to create B-Tree: %v\n", err)
+		os.Exit(1)
+	}
+	defer b.Close()
+
 	// Create engine map
 	engines := map[string]common.StorageEngine{
 		"HashIndex": h,
 		"LSM-Tree":  l,
+		"B-Tree":    b,
 	}
 
 	// Run comparison
@@ -268,7 +315,7 @@ func printSummaryTable(results []*benchmark.Result) {
 	}
 }
 
-func runRangeScanBenchmark(adapter *lsm.Adapter) {
+func runLSMRangeScanBenchmark(adapter *lsm.Adapter) {
 	fmt.Println("\nPreparing range scan test data...")
 
 	// Insert sequential keys for range scanning
@@ -301,6 +348,52 @@ func runRangeScanBenchmark(adapter *lsm.Adapter) {
 			count++
 			iter.Next()
 		}
+		elapsed := time.Since(start)
+
+		throughput := float64(count) / elapsed.Seconds()
+		avgLatency := elapsed / time.Duration(count)
+
+		fmt.Printf("\n%s:\n", r.name)
+		fmt.Printf("  Keys scanned: %d\n", count)
+		fmt.Printf("  Duration:     %v\n", elapsed)
+		fmt.Printf("  Throughput:   %.0f keys/sec\n", throughput)
+		fmt.Printf("  Avg latency:  %v per key\n", avgLatency)
+	}
+}
+
+func runBTreeRangeScanBenchmark(bt *btree.BTree) {
+	fmt.Println("\nPreparing range scan test data...")
+
+	// Insert sequential keys for range scanning
+	numKeys := 10000
+	for i := 0; i < numKeys; i++ {
+		key := fmt.Sprintf("user:%06d", i)
+		value := []byte(fmt.Sprintf(`{"id": %d, "name": "user%d"}`, i, i))
+		bt.Put([]byte(key), value)
+	}
+
+	fmt.Println("Running range scans...")
+
+	// Test different range sizes
+	ranges := []struct {
+		name  string
+		start string
+		end   string
+	}{
+		{"Small (100 keys)", "user:000000", "user:000100"},
+		{"Medium (1000 keys)", "user:000000", "user:001000"},
+		{"Large (5000 keys)", "user:000000", "user:005000"},
+		{"Full scan", "user:000000", "user:999999"},
+	}
+
+	for _, r := range ranges {
+		start := time.Now()
+		iter, _ := bt.Scan([]byte(r.start), []byte(r.end))
+		count := 0
+		for iter.Next() {
+			count++
+		}
+		iter.Close()
 		elapsed := time.Since(start)
 
 		throughput := float64(count) / elapsed.Seconds()

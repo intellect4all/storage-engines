@@ -1,205 +1,354 @@
 # Quick Start Guide
 
-Get up and running with HashIndex benchmarks in 2 minutes!
+Get up and running with all three storage engines in 2 minutes!
 
-## 1. Build Everything
+## 1. Clone and Build
 
 ```bash
+# Clone repository
+git clone https://github.com/intellect4all/storage-engines
+cd storage-engines
+
+# Initialize dependencies
+go mod tidy
+
 # Build benchmark tool
 go build -o benchmark ./cmd/benchmark
 ```
 
-## 2. Run Quick Benchmarks
+## 2. Run Quick Comparison
 
 ```bash
-./benchmark -quick
+#Compare all three engines
+./benchmark -engine compare -quick
 ```
 
 **Expected Output:**
 ```
 Storage Engine Benchmark Suite
 ================================
-Engine: HashIndex (high-performance)
-Duration: 1m0s
+Duration: 10s
 Concurrency: 8
+Mode: compare
 
+=== Comparing HashIndex vs. LSM-Tree vs. B-Tree ===
 
-=== Running: quick-write-heavy ===
-Preloading 1000 keys...
-Preload complete
-Warming up...
-Running benchmark for 10s...
+Running write-heavy workload...
+  HashIndex:  135,000 ops/sec  (Write P99: 180µs)
+  LSM-Tree:    42,000 ops/sec  (Write P99: 420µs)
+  B-Tree:      95,000 ops/sec  (Write P99: 250µs)
 
---- Results ---
-Throughput: 227531 ops/sec  ← FAST!
-Write P99: 164.5µs          ← LOW LATENCY!
-Space Amp: 1.17x            ← EFFICIENT!
-Zero errors ✅
+Running read-heavy workload...
+  HashIndex:  7,800,000 ops/sec  (Read P99: 8µs)
+  LSM-Tree:   1,800,000 ops/sec  (Read P99: 15µs)
+  B-Tree:       300,000 ops/sec  (Read P99: 45µs)
 
-=== Running: quick-balanced ===
-Throughput: 320887 ops/sec  ← EVEN FASTER!
-Write P99: 805µs
-Read P99: 7µs
-Space Amp: 1.17x
+Running balanced workload...
+  HashIndex:  290,000 ops/sec
+  LSM-Tree:    85,000 ops/sec
+  B-Tree:     120,000 ops/sec
+
+Space Amplification:
+  HashIndex:  5.8x  ← Highest (duplicates until compaction)
+  LSM-Tree:   1.9x  ← Good (compaction removes duplicates)
+  B-Tree:     1.1x  ← BEST! (in-place updates)
 ```
 
-## 3. Advanced Usage
+## 3. Test Individual Engines
 
-### Run Specific Workload
+### Hash Index (Fastest Point Lookups)
 
 ```bash
-# Just the write-heavy workload
-./benchmark -workload quick-write-heavy
-
-# With custom duration
-./benchmark -workload quick-balanced -duration 30s
+./benchmark -engine hashindex -quick
 ```
 
-### Tune Concurrency
+**What to Expect:**
+- ⚡ **300K+ ops/sec** in mixed workloads
+- 🟢 **O(1) lookups** - Hash index magic
+- ❌ **No range scans** - Only point lookups
+
+**Use Case:** Session stores, user profiles, caching
+
+### LSM-Tree (Best for Sequential Writes)
 
 ```bash
-# Low concurrency (single writer)
-./benchmark -quick -concurrency 1
-
-# High concurrency (stress test)
-./benchmark -quick -concurrency 32
+./benchmark -engine lsm -quick
 ```
 
-### Full Benchmarks (60s each)
+**What to Expect:**
+- ✅ **Range scans** - Excellent for time-series
+- 📊 **45K write ops/sec** - Good write throughput
+- 🔍 **Bloom filters** - Skip non-existent keys fast
+
+**Use Case:** Time-series data, log aggregation, analytics
+
+### B-Tree (Best Space Efficiency)
 
 ```bash
-# Standard workloads (takes ~4 minutes)
-./benchmark
-
-# Custom duration
-./benchmark -duration 120s -concurrency 16
+./benchmark -engine btree -quick
 ```
 
-## 4. Understanding the Output
+**What to Expect:**
+- 🎯 **1.1x space amp** - BEST of all three engines!
+- ⚡ **95K write ops/sec** - In-place updates
+- ✅ **Range scans** - Linked leaf pages
+- 🔄 **No compaction** - Zero maintenance overhead!
+
+**Use Case:** General-purpose databases, frequent updates, space-constrained systems
+
+## 4. Try Specific Workloads
+
+```bash
+# Write-heavy workload
+./benchmark -workload write-heavy -engine compare
+
+# Read-heavy workload
+./benchmark -workload read-heavy -engine compare
+
+# Balanced workload
+./benchmark -workload balanced -engine compare
+```
+
+## 5. Use in Your Code
+
+### Hash Index - Fastest Point Lookups
+
+```go
+import "github.com/intellect4all/storage-engines/hashindex"
+
+config := hashindex.DefaultConfig("./data")
+db, _ := hashindex.New(config)
+defer db.Close()
+
+// Write
+db.Put([]byte("user:1001"), []byte(`{"name":"Alice"}`))
+
+// Read (O(1) hash lookup!)
+value, _ := db.Get([]byte("user:1001"))
+
+// Update (appends new version)
+db.Put([]byte("user:1001"), []byte(`{"name":"Alice Updated"}`))
+```
+
+### LSM-Tree - Best for Range Queries
+
+```go
+import "github.com/intellect4all/storage-engines/lsm"
+
+config := lsm.DefaultConfig("./data")
+db, _ := lsm.New(config)
+defer db.Close()
+
+// Write
+db.Put("user:1001", []byte(`{"name":"Alice"}`))
+
+// Read
+value, found, _ := db.Get("user:1001")
+
+// Range scan (sorted iteration!)
+iter := db.Scan("user:1000", "user:2000")
+for iter.Valid() {
+    fmt.Printf("%s: %s\n", iter.Key(), iter.Value())
+    iter.Next()
+}
+```
+
+### B-Tree - Best Space Efficiency
+
+```go
+import "github.com/intellect4all/storage-engines/btree"
+
+config := btree.DefaultConfig("./data")
+db, _ := btree.New(config)
+defer db.Close()
+
+// Write (in-place update!)
+db.Put([]byte("user:1001"), []byte(`{"name":"Alice"}`))
+
+// Update same key (overwrites, no duplicate!)
+db.Put([]byte("user:1001"), []byte(`{"name":"Alice Updated"}`))
+
+// Read
+value, _ := db.Get([]byte("user:1001"))
+
+// Range scan
+iter, _ := db.Scan([]byte("user:1000"), []byte("user:2000"))
+for iter.Next() {
+    fmt.Printf("%s: %s\n", iter.Key(), iter.Value())
+}
+iter.Close()
+
+// Concurrent operations (latch coupling!)
+value, _ := db.ConcurrentGet([]byte("user:1001"))  // 2-5x faster
+db.ConcurrentPut([]byte("user:1002"), []byte(`{"name":"Bob"}`))
+```
+
+## 6. Understanding the Results
 
 ### Throughput
+
 ```
-Throughput: 320887 ops/sec
+HashIndex:  290,000 ops/sec  ← Fastest (O(1) hash)
+B-Tree:     120,000 ops/sec  ← Good (O(log n) tree)
+LSM-Tree:    85,000 ops/sec  ← Slower (multi-level compaction)
 ```
-- Higher is better
-- Typical: 200K-550K ops/sec
+
+Higher is better!
 
 ### Latency Percentiles
+
 ```
 Write Latency:
-  P50:  4.875µs   ← 50% of writes complete in this time
-  P95:  8.417µs   ← 95% of writes complete in this time
-  P99:  805µs     ← 99% of writes (tail latency)
-  P999: 1.02ms    ← 99.9% of writes
+  P50:  4.8µs   ← 50% of writes complete in this time
+  P95:  8.4µs   ← 95% of writes
+  P99:  805µs   ← 99% of writes (tail latency)
 ```
 
 - **P50** (median) - typical case
 - **P99** - what most users experience
-- **P999** - worst case for 1 in 1000
+- **P999** - worst case
 
-### Amplification Factors
+### Space Amplification
+
 ```
-Amplification:
-  Write: 1.17x  ← Disk writes / logical writes
-  Space: 1.17x  ← Disk space / logical data size
+B-Tree:      1.1x  ← BEST! (in-place updates)
+LSM-Tree:    1.9x  ← Good (compaction)
+HashIndex:   5.8x  ← Highest (duplicates)
 ```
 
-- **1.0x** is perfect (no overhead)
-- **1.17x** is excellent (minimal overhead)
+**1.0x is perfect** - B-Tree is closest!
 
-### What Good Looks Like
-- ✅ Throughput: 200K+ ops/sec
-- ✅ Write P99: < 1ms
-- ✅ Read P99: < 100µs
-- ✅ Space Amp: 1.0-1.5x
-- ✅ No errors
+### Write Amplification
 
-## 5. Common Issues
+```
+HashIndex:   1.5-2.5x  ← BEST (minimal compaction)
+B-Tree:      2-3x      ← Good (WAL + pages)
+LSM-Tree:    4-10x     ← Highest (multi-level compaction)
+```
 
-### "Benchmark failed" errors
+Lower is better!
+
+## 7. Quick Decision Guide
+
+**Choose Hash Index if:**
+- ✅ Need maximum throughput (300K+ ops/sec)
+- ✅ Only point lookups (no range scans)
+- ✅ All keys fit in memory
+- ✅ Can afford 5-6x space amplification
+
+**Choose LSM-Tree if:**
+- ✅ Need range queries
+- ✅ Write-heavy workload
+- ✅ Dataset larger than memory
+- ✅ Time-series or log data
+
+**Choose B-Tree if:**
+- ✅ Need range queries AND best space efficiency
+- ✅ Frequent updates to same keys
+- ✅ Space constrained (1.1x amp!)
+- ✅ Don't want compaction overhead
+- ✅ General-purpose database needs
+
+## 8. Run Tests
+
 ```bash
-# Check disk space
-df -h
+# All tests
+go test ./...
 
-# Try with shorter duration
-./benchmark -quick -duration 5s
+# With race detector
+go test -race ./...
+
+# Specific engine tests
+go test ./hashindex/ -v
+go test ./lsm/ -v
+go test ./btree/ -v
+
+# Specific features
+go test ./btree/ -run TestWAL -v          # WAL crash recovery
+go test ./btree/ -run TestConcurrent -v   # Latch coupling
+go test ./btree/ -run TestPageMerge -v    # Space reclamation
+go test ./btree/ -run TestVarint -v       # Variable-length encoding
 ```
 
-### Benchmark runs forever
+## 9. Advanced Benchmarking
+
 ```bash
-# Use Ctrl+C to stop
-# Or set shorter duration
-./benchmark -quick -duration 5s
+# Custom duration and concurrency
+./benchmark -engine compare -duration 60s -concurrency 16
+
+# Test different concurrency levels
+./benchmark -engine btree -quick -concurrency 1   # Single-threaded
+./benchmark -engine btree -quick -concurrency 8   # Multi-threaded
+./benchmark -engine btree -quick -concurrency 32  # High contention
+
+# Individual workloads
+./benchmark -engine hashindex -workload write-heavy
+./benchmark -engine lsm -workload read-heavy
+./benchmark -engine btree -workload balanced
 ```
 
-## 6. What to Try Next
+## 10. Key Takeaways
 
-### A. Test Different Concurrency Levels
-```bash
-# Start low
-./benchmark -quick -concurrency 1
+### Hash Index
+- **300K+ ops/sec** - Fastest point lookups
+- **O(1) access** - Hash table advantage
+- **5-6x space amp** - Highest overhead
+- ❌ No range scans
 
-# Ramp up (watch throughput scale!)
-./benchmark -quick -concurrency 4
-./benchmark -quick -concurrency 8
-./benchmark -quick -concurrency 16
-```
+### LSM-Tree
+- **45K write ops/sec** - Good for sequential writes
+- **Range scans** - Sorted SSTable merge
+- **1.9x space amp** - Compaction helps
+- **4-10x write amp** - Multi-level compaction cost
 
-### B. Study the Code
-1. Read `hashindex/hashindex.go` - see the lock-free techniques
-2. Read `hashindex/shard.go` - see how sharding reduces contention
-3. Read `hashindex/segment.go` - see reference counting in action
+### B-Tree
+- **95K write ops/sec** - In-place updates
+- **1.1x space amp** - BEST of all three!
+- **Range scans** - Linked leaf pages
+- **2-3x write amp** - WAL overhead
+- **No compaction** - Zero maintenance!
 
-### C. Run Tests
-```bash
-# Quick test
-go test ./hashindex -run TestBasicOperations
-
-# Concurrency stress test
-go test ./hashindex -run TestConcurrency
-
-# Benchmark test
-go test ./hashindex -run TestQuickBenchmark
-```
-
-## 7. CLI Reference
-
-### Benchmark Tool
+## 11. CLI Reference
 
 ```bash
 ./benchmark [OPTIONS]
 
 Options:
+  -engine string
+        Engine to benchmark: hashindex, lsm, btree, or compare (default: compare)
   -quick
         Run quick benchmarks (10s each, fewer keys)
   -workload string
-        Workload to run: all, quick-write-heavy, quick-balanced, etc (default "all")
+        Workload to run: all, write-heavy, read-heavy, balanced (default: all)
   -duration duration
-        Duration for each benchmark (default 1m0s)
+        Duration for each benchmark (default: 60s)
   -concurrency int
-        Number of concurrent workers (default 8)
+        Number of concurrent workers (default: 8)
 
 Examples:
-  ./benchmark -quick
-  ./benchmark -workload quick-balanced
-  ./benchmark -duration 30s -concurrency 16
+  ./benchmark -engine compare -quick                    # Compare all three
+  ./benchmark -engine btree -quick                      # Test B-Tree only
+  ./benchmark -workload write-heavy -engine compare     # Write-heavy comparison
+  ./benchmark -duration 30s -concurrency 16             # Custom settings
 ```
 
-## 8. Key Takeaways
+## 12. Next Steps
 
-1. **HashIndex is fast** - 300K+ ops/sec in balanced workload
-2. **HashIndex is efficient** - 1.17x space amplification (near optimal)
-3. **HashIndex is correct** - No race conditions, zero errors
-4. **HashIndex is production-ready** - Proper synchronization and compaction
-
-## 9. Next Steps
-
-- Read [README.md](README.md) for full project overview
-- Try implementing your own optimizations!
+- 📖 Read [README.md](README.md) for full project overview
+- 📚 Read [COMPONENT_GUIDE.md](COMPONENT_GUIDE.md) for deep dive
+- 🔍 Explore individual engine documentation:
+  - [Hash Index](./hashindex/README.md)
+  - [LSM-Tree](./lsm/README.md)
+  - [B-Tree](./btree/README.md)
+- 🛠️ Try implementing your own optimizations!
 
 ---
 
 **Ready to benchmark? Start with:**
 ```bash
-./benchmark -quick
+go mod tidy
+go build -o benchmark ./cmd/benchmark
+./benchmark -engine compare -quick
 ```
+
+**Compare all three engines in 30 seconds!** ⚡

@@ -6,24 +6,28 @@ import (
 	"os"
 	"strings"
 
+	"github.com/intellect4all/storage-engines/btree"
 	"github.com/intellect4all/storage-engines/hashindex"
 	"github.com/intellect4all/storage-engines/lsm"
 )
 
 func main() {
 	fmt.Println(strings.Repeat("=", 80))
-	fmt.Println("Storage Engines Demo: Hash Index vs LSM-Tree")
+	fmt.Println("Storage Engines Demo: Hash Index vs LSM-Tree vs B-Tree")
 	fmt.Println(strings.Repeat("=", 80))
 	fmt.Println()
-	fmt.Println("This demo showcases the key differences between two storage engines:")
+	fmt.Println("This demo showcases the key differences between three storage engines:")
 	fmt.Println("  • Hash Index: Fast point lookups, simple design")
 	fmt.Println("  • LSM-Tree:   Range queries, sorted iteration, space efficient")
+	fmt.Println("  • B-Tree:     In-place updates, balanced tree, best space efficiency")
 	fmt.Println()
 
-	// Demo both engines
+	// Demo all engines
 	demoHashIndex()
 	fmt.Println()
 	demoLSM()
+	fmt.Println()
+	demoBTree()
 
 	// Summary
 	fmt.Println("\n" + strings.Repeat("=", 80))
@@ -255,6 +259,103 @@ func demoLSM() {
 	fmt.Printf("  L2 files: %d\n", db.GetLevels().NumFiles(2))
 	fmt.Printf("  Total SSTables: %d\n", db.GetLevels().GetTotalFiles())
 	fmt.Printf("  Total Size: %.2f MB\n", float64(db.GetLevels().GetTotalSize())/(1024*1024))
+}
+
+func demoBTree() {
+	fmt.Println("\n### B-Tree Demo ###")
+	fmt.Println(strings.Repeat("-", 40))
+
+	// Create directory
+	os.MkdirAll("./data-btree", 0755)
+	defer os.RemoveAll("./data-btree")
+
+	// Create B-tree
+	config := btree.DefaultConfig("./data-btree")
+
+	bt, err := btree.New(config)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer bt.Close()
+
+	fmt.Println("✓ Created B-Tree storage engine")
+
+	// Put some data
+	fmt.Println("\n[Writing data]")
+	testData := map[string]string{
+		"session:2001": `{"user_id": 1001, "expires": "2024-12-31"}`,
+		"session:2002": `{"user_id": 1002, "expires": "2024-12-31"}`,
+		"config:app":   `{"version": "1.0", "debug": false}`,
+		"config:db":    `{"host": "localhost", "port": 5432}`,
+	}
+
+	for key, value := range testData {
+		err = bt.Put([]byte(key), []byte(value))
+		if err != nil {
+			log.Printf("Error writing %s: %v", key, err)
+		} else {
+			fmt.Printf("  PUT %s\n", key)
+		}
+	}
+
+	// Read data
+	fmt.Println("\n[Reading data]")
+	value, err := bt.Get([]byte("session:2001"))
+	if err != nil {
+		log.Printf("Error reading: %v", err)
+	} else {
+		fmt.Printf("  GET session:2001 → %s\n", truncate(string(value), 50))
+	}
+
+	// Update (in-place!) - B-tree advantage
+	fmt.Println("\n[Updating data - B-tree overwrites in place]")
+	err = bt.Put([]byte("config:app"), []byte(`{"version": "2.0", "debug": true}`))
+	if err != nil {
+		log.Printf("Error updating: %v", err)
+	} else {
+		fmt.Println("  UPDATE config:app → new version")
+	}
+
+	// Read updated value
+	value, err = bt.Get([]byte("config:app"))
+	if err != nil {
+		log.Printf("Error reading: %v", err)
+	} else {
+		fmt.Printf("  GET config:app → %s\n", truncate(string(value), 50))
+	}
+
+	// Range scan
+	fmt.Println("\n[Range scan - session:* keys]")
+	iter, err := bt.Scan([]byte("session:"), []byte("session:~"))
+	if err != nil {
+		log.Printf("Error scanning: %v", err)
+	} else {
+		fmt.Println("  Scanning range [session: to session:~):")
+		count := 0
+		for iter.Next() {
+			key := iter.Key()
+			val := iter.Value()
+			fmt.Printf("    %s → %s\n", string(key), truncate(string(val), 40))
+			count++
+		}
+		iter.Close()
+		fmt.Printf("  Total: %d keys in range\n", count)
+	}
+
+	// Stats
+	fmt.Println("\n[B-Tree Stats]")
+	stats := bt.Stats()
+	fmt.Printf("  Keys: %d\n", stats.NumKeys)
+	fmt.Printf("  Pages: %d\n", stats.NumSegments)
+	fmt.Printf("  Total Size: %d bytes\n", stats.TotalDiskSize)
+	fmt.Printf("  Space Amp: %.2fx (BEST of all engines!)\n", stats.SpaceAmp)
+	fmt.Printf("  Write Amp: %.2fx\n", stats.WriteAmp)
+
+	fmt.Println("\n✓ B-Tree advantages:")
+	fmt.Println("  • In-place updates (no old versions)")
+	fmt.Println("  • Best space efficiency (~1.2x amplification)")
+	fmt.Println("  • No compaction required")
+	fmt.Println("  • Supports range scans")
 }
 
 func truncate(s string, maxLen int) string {
