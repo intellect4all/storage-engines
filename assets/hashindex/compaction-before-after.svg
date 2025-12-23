@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420">
+  <defs>
+    <linearGradient id="liveGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="staleGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ef4444;stop-opacity:0.6" />
+      <stop offset="100%" style="stop-color:#dc2626;stop-opacity:0.6" />
+    </linearGradient>
+    <linearGradient id="tombstoneGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1f2937;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#111827;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="segmentGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#f3f4f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e5e7eb;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="compactedGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#dbeafe;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#bfdbfe;stop-opacity:1" />
+    </linearGradient>
+    <marker id="arrowhead2" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6"/>
+    </marker>
+  </defs>
+  
+  <!-- Title -->
+  <text x="450" y="30" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="600" fill="#1f2937">Compaction: Before and After</text>
+  
+  <!-- BEFORE Section -->
+  <text x="190" y="60" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="600" fill="#6b7280">BEFORE</text>
+  
+  <!-- Segment 1 -->
+  <rect x="30" y="80" width="320" height="95" rx="8" fill="url(#segmentGrad)" stroke="#9ca3af" stroke-width="2"/>
+  <text x="50" y="100" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#6b7280">segment_001.seg</text>
+  
+  <rect x="45" y="110" width="90" height="55" rx="4" fill="url(#staleGrad)" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="3,2"/>
+  <text x="90" y="135" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="500" fill="#991b1b">dave: 100</text>
+  <text x="90" y="152" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#991b1b">STALE</text>
+  
+  <rect x="145" y="110" width="90" height="55" rx="4" fill="url(#liveGrad)" stroke="#047857" stroke-width="1.5"/>
+  <text x="190" y="135" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="500" fill="white">alice: 50</text>
+  <text x="190" y="152" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="rgba(255,255,255,0.8)">LIVE</text>
+  
+  <rect x="245" y="110" width="90" height="55" rx="4" fill="url(#staleGrad)" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="3,2"/>
+  <text x="290" y="135" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="500" fill="#991b1b">bob: 75</text>
+  <text x="290" y="152" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#991b1b">STALE</text>
+  
+  <!-- Segment 2 -->
+  <rect x="30" y="185" width="320" height="95" rx="8" fill="url(#segmentGrad)" stroke="#9ca3af" stroke-width="2"/>
+  <text x="50" y="205" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#6b7280">segment_002.seg</text>
+  
+  <rect x="45" y="215" width="90" height="55" rx="4" fill="url(#liveGrad)" stroke="#047857" stroke-width="1.5"/>
+  <text x="90" y="240" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="500" fill="white">dave: 200</text>
+  <text x="90" y="257" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="rgba(255,255,255,0.8)">LIVE</text>
+  
+  <rect x="145" y="215" width="90" height="55" rx="4" fill="url(#tombstoneGrad)" stroke="#374151" stroke-width="1.5"/>
+  <text x="190" y="240" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="500" fill="white">charlie: ∅</text>
+  <text x="190" y="257" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#9ca3af">TOMBSTONE</text>
+  
+  <rect x="245" y="215" width="90" height="55" rx="4" fill="url(#liveGrad)" stroke="#047857" stroke-width="1.5"/>
+  <text x="290" y="240" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="500" fill="white">bob: 150</text>
+  <text x="290" y="257" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="rgba(255,255,255,0.8)">LIVE</text>
+  
+  <!-- Storage info before -->
+  <text x="190" y="305" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" fill="#6b7280">Total: 6 records across 2 segments</text>
+  <text x="190" y="322" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" fill="#dc2626">2 stale + 1 tombstone = wasted space</text>
+  
+  <!-- Arrow -->
+  <path d="M 380 200 L 480 200" stroke="#3b82f6" stroke-width="3" fill="none" marker-end="url(#arrowhead2)"/>
+  <text x="430" y="185" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600" fill="#3b82f6">Compaction</text>
+  <text x="430" y="220" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#6b7280">merge + dedupe</text>
+  
+  <!-- AFTER Section -->
+  <text x="680" y="60" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="600" fill="#6b7280">AFTER</text>
+  
+  <!-- Compacted Segment -->
+  <rect x="520" y="120" width="340" height="160" rx="8" fill="url(#compactedGrad)" stroke="#3b82f6" stroke-width="2"/>
+  <text x="540" y="145" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#1e40af">segment_003.seg (compacted)</text>
+  
+  <rect x="540" y="160" width="95" height="55" rx="4" fill="url(#liveGrad)" stroke="#047857" stroke-width="1.5"/>
+  <text x="587" y="185" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="500" fill="white">dave: 200</text>
+  <text x="587" y="202" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="rgba(255,255,255,0.8)">latest</text>
+  
+  <rect x="645" y="160" width="95" height="55" rx="4" fill="url(#liveGrad)" stroke="#047857" stroke-width="1.5"/>
+  <text x="692" y="185" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="500" fill="white">alice: 50</text>
+  <text x="692" y="202" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="rgba(255,255,255,0.8)">unchanged</text>
+  
+  <rect x="750" y="160" width="95" height="55" rx="4" fill="url(#liveGrad)" stroke="#047857" stroke-width="1.5"/>
+  <text x="797" y="185" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="500" fill="white">bob: 150</text>
+  <text x="797" y="202" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="rgba(255,255,255,0.8)">latest</text>
+  
+  <!-- Deleted records note -->
+  <text x="540" y="245" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#6b7280">✗ dave: 100 (superseded)</text>
+  <text x="540" y="260" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#6b7280">✗ bob: 75 (superseded)</text>
+  <text x="700" y="245" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#6b7280">✗ charlie (tombstone removed)</text>
+  
+  <!-- Storage info after -->
+  <text x="690" y="305" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" fill="#059669" font-weight="500">Total: 3 live records in 1 segment</text>
+  <text x="690" y="322" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" fill="#059669">50% space reclaimed!</text>
+  
+  <!-- Legend -->
+  <rect x="30" y="365" width="16" height="16" rx="3" fill="url(#liveGrad)"/>
+  <text x="52" y="378" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#374151">Live record</text>
+  
+  <rect x="150" y="365" width="16" height="16" rx="3" fill="url(#staleGrad)" stroke="#dc2626" stroke-width="1" stroke-dasharray="2,1"/>
+  <text x="172" y="378" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#374151">Stale (superseded)</text>
+  
+  <rect x="300" y="365" width="16" height="16" rx="3" fill="url(#tombstoneGrad)"/>
+  <text x="322" y="378" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#374151">Tombstone (deleted)</text>
+</svg>

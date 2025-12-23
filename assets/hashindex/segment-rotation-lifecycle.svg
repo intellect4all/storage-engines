@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 850 320">
+  <defs>
+    <linearGradient id="activeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="immutableGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#6b7280;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4b5563;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="newGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1" />
+    </linearGradient>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#6b7280"/>
+    </marker>
+  </defs>
+  
+  <!-- Title -->
+  <text x="425" y="30" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="600" fill="#1f2937">Segment Rotation Lifecycle</text>
+  
+  <!-- Step 1: Active Segment receiving writes -->
+  <rect x="30" y="70" width="160" height="100" rx="8" fill="url(#activeGrad)" stroke="#047857" stroke-width="2"/>
+  <text x="110" y="110" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="600" fill="white">Active Segment</text>
+  <text x="110" y="130" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="rgba(255,255,255,0.8)">segment_001.seg</text>
+  <text x="110" y="155" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="rgba(255,255,255,0.8)">← writes go here</text>
+  
+  <!-- Write arrows coming in -->
+  <line x1="110" y1="55" x2="110" y2="68" stroke="#10b981" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="110" y="48" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#059669">Put()</text>
+  
+  <!-- Arrow 1 to 2 -->
+  <line x1="200" y1="120" x2="270" y2="120" stroke="#6b7280" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="235" y="108" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#6b7280">size limit</text>
+  <text x="235" y="138" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#6b7280">reached</text>
+  
+  <!-- Step 2: Segment becomes immutable -->
+  <rect x="280" y="70" width="160" height="100" rx="8" fill="url(#immutableGrad)" stroke="#374151" stroke-width="2"/>
+  <text x="360" y="105" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="600" fill="white">Immutable</text>
+  <text x="360" y="125" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="rgba(255,255,255,0.8)">segment_001.seg</text>
+  <text x="360" y="150" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="rgba(255,255,255,0.8)">🔒 read-only</text>
+  
+  <!-- Arrow 2 to 3 -->
+  <line x1="450" y1="120" x2="520" y2="120" stroke="#6b7280" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="485" y="108" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#6b7280">move to</text>
+  <text x="485" y="138" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#6b7280">segments[]</text>
+  
+  <!-- Step 3: Old segments list -->
+  <rect x="530" y="60" width="140" height="35" rx="6" fill="url(#immutableGrad)" stroke="#374151" stroke-width="1.5"/>
+  <text x="600" y="83" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="white">segment_001.seg</text>
+  
+  <rect x="530" y="100" width="140" height="35" rx="6" fill="url(#immutableGrad)" stroke="#374151" stroke-width="1.5" stroke-dasharray="4,2"/>
+  <text x="600" y="123" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="white">segment_000.seg</text>
+  
+  <rect x="530" y="140" width="140" height="35" rx="6" fill="url(#immutableGrad)" stroke="#374151" stroke-width="1.5" stroke-dasharray="4,2"/>
+  <text x="600" y="163" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="white">...</text>
+  
+  <text x="600" y="195" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" fill="#6b7280">Immutable Segments List</text>
+  
+  <!-- Step 4: New active segment created -->
+  <rect x="720" y="70" width="110" height="100" rx="8" fill="url(#newGrad)" stroke="#1e40af" stroke-width="2"/>
+  <text x="775" y="105" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600" fill="white">New Active</text>
+  <text x="775" y="125" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="rgba(255,255,255,0.8)">segment_002.seg</text>
+  <text x="775" y="150" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="rgba(255,255,255,0.8)">← writes now</text>
+  
+  <!-- Arrow from step 2 down to new segment -->
+  <path d="M 360 175 L 360 220 L 775 220 L 775 175" stroke="#3b82f6" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+  <text x="567" y="238" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#3b82f6">create new segment</text>
+  
+  <!-- Legend -->
+  <rect x="30" y="270" width="18" height="18" rx="3" fill="url(#activeGrad)"/>
+  <text x="55" y="284" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#374151">Active (writable)</text>
+  
+  <rect x="170" y="270" width="18" height="18" rx="3" fill="url(#immutableGrad)"/>
+  <text x="195" y="284" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#374151">Immutable (read-only)</text>
+  
+  <rect x="340" y="270" width="18" height="18" rx="3" fill="url(#newGrad)"/>
+  <text x="365" y="284" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#374151">Newly created</text>
+</svg>

@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <defs>
+    <linearGradient id="keyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="hashGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="shardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="shardGradHighlight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="lockGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#6b7280;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4b5563;stop-opacity:1" />
+    </linearGradient>
+    <marker id="arrow3" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#6b7280"/>
+    </marker>
+    <marker id="arrow4" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#10b981"/>
+    </marker>
+  </defs>
+  
+  <!-- Title -->
+  <text x="400" y="30" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="600" fill="#1f2937">Sharded Index: Eliminating Lock Contention</text>
+  
+  <!-- Step 1: Key Input -->
+  <rect x="30" y="70" width="120" height="50" rx="8" fill="url(#keyGrad)" stroke="#6d28d9" stroke-width="2"/>
+  <text x="90" y="100" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="600" fill="white">key: "dave"</text>
+  
+  <!-- Arrow to hash -->
+  <line x1="155" y1="95" x2="195" y2="95" stroke="#6b7280" stroke-width="2" marker-end="url(#arrow3)"/>
+  
+  <!-- Step 2: FNV Hash -->
+  <rect x="200" y="60" width="140" height="70" rx="8" fill="url(#hashGrad)" stroke="#b45309" stroke-width="2"/>
+  <text x="270" y="88" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="white">FNV-1a Hash</text>
+  <text x="270" y="108" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="rgba(255,255,255,0.9)">→ 0x7A3B2C1D</text>
+  
+  <!-- Arrow to mask operation -->
+  <line x1="345" y1="95" x2="385" y2="95" stroke="#6b7280" stroke-width="2" marker-end="url(#arrow3)"/>
+  
+  <!-- Step 3: Bitmask -->
+  <rect x="390" y="60" width="160" height="70" rx="8" fill="#f3f4f6" stroke="#9ca3af" stroke-width="2"/>
+  <text x="470" y="85" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#374151">hash & 0xFF</text>
+  <text x="470" y="105" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#6b7280">= shard index 29</text>
+  
+  <!-- Arrow down to shards -->
+  <path d="M 470 135 L 470 175" stroke="#10b981" stroke-width="2" marker-end="url(#arrow4)"/>
+  
+  <!-- Shards Array -->
+  <text x="400" y="195" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="600" fill="#374151">256 Independent Shards</text>
+  
+  <!-- Shard boxes -->
+  <g transform="translate(50, 215)">
+    <!-- Shard 0 -->
+    <rect x="0" y="0" width="80" height="70" rx="6" fill="url(#shardGrad)" stroke="#1e40af" stroke-width="1.5"/>
+    <text x="40" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="500" fill="white">Shard 0</text>
+    <rect x="10" y="32" width="60" height="28" rx="4" fill="url(#lockGrad)"/>
+    <text x="40" y="51" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="white">🔒 RWMutex</text>
+    
+    <!-- Shard 1 -->
+    <rect x="90" y="0" width="80" height="70" rx="6" fill="url(#shardGrad)" stroke="#1e40af" stroke-width="1.5"/>
+    <text x="130" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="500" fill="white">Shard 1</text>
+    <rect x="100" y="32" width="60" height="28" rx="4" fill="url(#lockGrad)"/>
+    <text x="130" y="51" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="white">🔒 RWMutex</text>
+    
+    <!-- Dots -->
+    <text x="200" y="40" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="20" fill="#9ca3af">···</text>
+    
+    <!-- Shard 29 (highlighted) -->
+    <rect x="240" y="0" width="80" height="70" rx="6" fill="url(#shardGradHighlight)" stroke="#047857" stroke-width="2.5"/>
+    <text x="280" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="white">Shard 29</text>
+    <rect x="250" y="32" width="60" height="28" rx="4" fill="#065f46"/>
+    <text x="280" y="51" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="white">🔓 LOCKED</text>
+    
+    <!-- Dots -->
+    <text x="350" y="40" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="20" fill="#9ca3af">···</text>
+    
+    <!-- Shard 254 -->
+    <rect x="390" y="0" width="80" height="70" rx="6" fill="url(#shardGrad)" stroke="#1e40af" stroke-width="1.5"/>
+    <text x="430" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="500" fill="white">Shard 254</text>
+    <rect x="400" y="32" width="60" height="28" rx="4" fill="url(#lockGrad)"/>
+    <text x="430" y="51" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="white">🔒 RWMutex</text>
+    
+    <!-- Shard 255 -->
+    <rect x="480" y="0" width="80" height="70" rx="6" fill="url(#shardGrad)" stroke="#1e40af" stroke-width="1.5"/>
+    <text x="520" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="500" fill="white">Shard 255</text>
+    <rect x="490" y="32" width="60" height="28" rx="4" fill="url(#lockGrad)"/>
+    <text x="520" y="51" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="white">🔒 RWMutex</text>
+  </g>
+  
+  <!-- Arrow to shard 29's entries -->
+  <path d="M 330 290 L 330 315" stroke="#10b981" stroke-width="2" marker-end="url(#arrow4)"/>
+  
+  <!-- Shard 29's map -->
+  <rect x="220" y="320" width="220" height="100" rx="8" fill="#ecfdf5" stroke="#10b981" stroke-width="2"/>
+  <text x="330" y="345" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#065f46">entries map[string]*indexEntry</text>
+  
+  <text x="240" y="370" font-family="monospace" font-size="10" fill="#374151">"dave"  → {seg:3, off:1024}</text>
+  <text x="240" y="387" font-family="monospace" font-size="10" fill="#374151">"emma"  → {seg:2, off:512}</text>
+  <text x="240" y="404" font-family="monospace" font-size="10" fill="#374151">"frank" → {seg:3, off:2048}</text>
+  
+  <!-- Benefits box -->
+  <rect x="520" y="320" width="250" height="100" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="645" y="345" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#92400e">Why This Matters</text>
+  <text x="535" y="368" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#78350f">✓ 256 concurrent writes possible</text>
+  <text x="535" y="387" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#78350f">✓ No global lock bottleneck</text>
+  <text x="535" y="406" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#78350f">✓ Linear scalability with cores</text>
+</svg>
